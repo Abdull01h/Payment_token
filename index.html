@@ -16,7 +16,6 @@
         button { width: 100%; padding: 12px; margin-top: 5px; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .btn-send { background: var(--primary); }
         .btn-receive { background: var(--secondary); }
-        .btn-admin { background: #d97706; display: none; } /* ডিফল্ট লুকানো */
         #receipt { display: none; border: 2px solid #333; padding: 15px; margin-top: 10px; background: #fff; }
     </style>
 </head>
@@ -38,8 +37,8 @@
         <div id="reader"></div>
     </div>
 
-    <button class="btn-admin" id="admin-btn" onclick="addFund()" style="display: block;">ফান্ড যোগ করুন</button>
-    </div>
+    <button onclick="addFund()" style="background: #d97706;">ফান্ড যোগ করুন</button>
+</div>
 
 <div id="receipt" class="card">
     <h4>পেমেন্ট রিসিট</h4>
@@ -49,12 +48,17 @@
 
 <script>
     let bal = parseFloat(localStorage.getItem('myBal') || '1000');
+    let usedIds = JSON.parse(localStorage.getItem('usedIds') || '[]');
     const MAX_LIMIT = 500000;
-    const SECRET_PASSWORD = "123"; // আপনার পাসওয়ার্ড এখানে পরিবর্তন করুন
+    const SECRET_PASSWORD = "123"; // আপনার পাসওয়ার্ড এখানে দিন
 
     document.getElementById('bal').innerText = bal;
 
-    // পাসওয়ার্ড চেক ফাংশন
+    function updateUI() {
+        localStorage.setItem('myBal', bal);
+        document.getElementById('bal').innerText = bal;
+    }
+
     function addFund() {
         let pass = prompt("অ্যাডমিন পাসওয়ার্ড দিন:");
         if (pass === SECRET_PASSWORD) {
@@ -68,32 +72,38 @@
         }
     }
 
-    function updateUI() {
-        localStorage.setItem('myBal', bal);
-        document.getElementById('bal').innerText = bal;
-    }
-
     function generate() {
         let amt = parseFloat(document.getElementById('amt').value);
         if (amt > bal) return alert("পর্যাপ্ত ব্যালেন্স নেই!");
         bal -= amt;
         updateUI();
+        
+        let txId = "TXN-" + Date.now();
         document.getElementById("qr-display").innerHTML = "";
-        new QRCode(document.getElementById("qr-display"), "PAY:" + amt);
+        new QRCode(document.getElementById("qr-display"), "PAY:" + amt + ":" + txId);
     }
 
     document.getElementById('scan-btn').onclick = () => {
         const scanner = new Html5Qrcode("reader");
         scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (data) => {
-            if(data.startsWith("PAY:")) {
-                let r = parseFloat(data.split(":")[1]);
-                if ((bal + r) > MAX_LIMIT) {
-                    alert("ব্যালেন্স সীমা ৫ লক্ষ টাকা অতিক্রম করবে!");
-                } else {
-                    bal += r;
-                    updateUI();
-                    showReceipt(r);
-                }
+            let parts = data.split(":");
+            let amount = parseFloat(parts[1]);
+            let txId = parts[2];
+
+            if (usedIds.includes(txId)) {
+                alert("সতর্কতা: এই পেমেন্ট স্লিপটি ইতিমধ্যে ব্যবহৃত হয়েছে!");
+                scanner.stop();
+                return;
+            }
+
+            if ((bal + amount) > MAX_LIMIT) {
+                alert("ব্যালেন্স সীমা ৫ লক্ষ টাকা অতিক্রম করবে!");
+            } else {
+                bal += amount;
+                usedIds.push(txId);
+                localStorage.setItem('usedIds', JSON.stringify(usedIds));
+                updateUI();
+                showReceipt(amount);
                 scanner.stop();
             }
         });
