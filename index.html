@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern P2P Wallet</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .app-container { max-width: 400px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .balance-box { text-align: center; color: var(--primary); }
+        h1 { font-size: 24px; margin: 0; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #qr-display { display: flex; justify-content: center; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="card balance-box">
+        <p>আপনার ব্যালেন্স</p>
+        <h1 id="bal">1000</h1> <span>টাকা</span>
+    </div>
+
+    <div class="card">
+        <input type="number" id="amt" placeholder="পরিমাণ লিখুন">
+        <button onclick="generate()">পেমেন্ট QR তৈরি করুন</button>
+        <div id="qr-display"></div>
+    </div>
+
+    <div class="card">
+        <button onclick="startScan()" style="background: #059669;">QR স্ক্যান করুন</button>
+        <div id="reader" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script>
+    let bal = parseFloat(localStorage.getItem('myBal') || '1000');
+    document.getElementById('bal').innerText = bal;
+
+    function generate() {
+        let amt = document.getElementById('amt').value;
+        if(amt > bal) return alert("পর্যাপ্ত ব্যালেন্স নেই!");
+        bal -= parseFloat(amt);
+        updateUI();
+        document.getElementById("qr-display").innerHTML = "";
+        new QRCode(document.getElementById("qr-display"), "PAY:" + amt);
+    }
+
+    function startScan() {
+        const scanner = new Html5Qrcode("reader");
+        scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (data) => {
+            if(data.startsWith("PAY:")) {
+                bal += parseFloat(data.split(":")[1]);
+                updateUI();
+                alert("পেমেন্ট সফল!");
+                scanner.stop();
+            }
+        });
+    }
+
+    function updateUI() {
+        localStorage.setItem('myBal', bal);
+        document.getElementById('bal').innerText = bal;
+    }
+</script>
+</body>
+</html>
